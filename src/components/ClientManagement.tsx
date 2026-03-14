@@ -8,7 +8,6 @@ import {
   query, 
   where, 
   deleteDoc,
-  orderBy
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { UserProfile, Deposit, Payment, PaymentFrequency } from '../types';
@@ -19,7 +18,6 @@ import {
   Minus, 
   Settings, 
   History, 
-  DollarSign, 
   Trash2,
   Save,
   CheckCircle2,
@@ -39,13 +37,19 @@ interface ClientManagementProps {
   onBack: () => void;
 }
 
+interface ConfirmModalState {
+  open: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+}
+
 export default function ClientManagement({ manager, clientId, onBack }: ClientManagementProps) {
   const [client, setClient] = useState<UserProfile | null>(null);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Form states
   const [depositAmount, setDepositAmount] = useState('');
   const [depositDate, setDepositDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -54,8 +58,15 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
   const [editPayDay, setEditPayDay] = useState(0);
   const [editFrequency, setEditFrequency] = useState<PaymentFrequency>('monthly');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  
-  // Edit transaction state
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalState>({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   const [editingTransaction, setEditingTransaction] = useState<{
     type: 'deposits' | 'payments';
     id: string;
@@ -66,9 +77,9 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
   useEffect(() => {
     if (!clientId) return;
 
-    const unsubClient = onSnapshot(doc(db, 'users', clientId), (doc) => {
-      if (doc.exists()) {
-        const data = doc.data() as UserProfile;
+    const unsubClient = onSnapshot(doc(db, 'users', clientId), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as UserProfile;
         setClient(data);
         setEditRate(data.interestRate || 0);
         setEditPayDay(data.paymentDay || 1);
@@ -80,24 +91,24 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
     });
 
     const qDeposits = query(
-      collection(db, 'deposits'), 
+      collection(db, 'deposits'),
       where('clientId', '==', clientId),
       where('managerId', '==', manager.uid)
     );
     const unsubDeposits = onSnapshot(qDeposits, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Deposit));
+      const docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Deposit));
       setDeposits(docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'deposits');
     });
 
     const qPayments = query(
-      collection(db, 'payments'), 
+      collection(db, 'payments'),
       where('clientId', '==', clientId),
       where('managerId', '==', manager.uid)
     );
     const unsubPayments = onSnapshot(qPayments, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Payment));
+      const docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Payment));
       setPayments(docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'payments');
@@ -119,98 +130,146 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
     setTimeout(() => setSuccessMsg(null), 3000);
   };
 
+  const showError = (msg: string) => {
+    setErrorMsg(msg);
+    setTimeout(() => setErrorMsg(null), 4000);
+  };
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ open: true, title, message, onConfirm });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal(prev => ({ ...prev, open: false }));
+  };
+
   const handleAddDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!depositAmount || !client) return;
-    await addDoc(collection(db, 'deposits'), {
-      clientId,
-      clientEmail: client.email,
-      managerId: manager.uid,
-      payerEmail: manager.payerEmail || '',
-      amount: parseFloat(depositAmount),
-      date: new Date(depositDate + 'T12:00:00').toISOString(),
-    });
-    setDepositAmount('');
-    setDepositDate(new Date().toISOString().split('T')[0]);
-    showSuccess('Depósito realizado com sucesso!');
+    try {
+      await addDoc(collection(db, 'deposits'), {
+        clientId,
+        clientEmail: client.email,
+        managerId: manager.uid,
+        payerEmail: manager.payerEmail || '',
+        amount: parseFloat(depositAmount),
+        date: new Date(depositDate + 'T12:00:00').toISOString(),
+      });
+      setDepositAmount('');
+      setDepositDate(new Date().toISOString().split('T')[0]);
+      showSuccess('Depósito realizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao adicionar depósito:', error);
+      showError('Erro ao adicionar depósito.');
+    }
   };
 
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!paymentAmount || !client) return;
-    await addDoc(collection(db, 'payments'), {
-      clientId,
-      clientEmail: client.email,
-      managerId: manager.uid,
-      payerEmail: manager.payerEmail || '',
-      amount: parseFloat(paymentAmount),
-      date: new Date(paymentDate + 'T12:00:00').toISOString(),
-    });
-    setPaymentAmount('');
-    setPaymentDate(new Date().toISOString().split('T')[0]);
-    showSuccess('Pagamento registrado com sucesso!');
+    try {
+      await addDoc(collection(db, 'payments'), {
+        clientId,
+        clientEmail: client.email,
+        managerId: manager.uid,
+        payerEmail: manager.payerEmail || '',
+        amount: parseFloat(paymentAmount),
+        date: new Date(paymentDate + 'T12:00:00').toISOString(),
+      });
+      setPaymentAmount('');
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      showSuccess('Pagamento registrado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao registrar pagamento:', error);
+      showError('Erro ao registrar pagamento.');
+    }
   };
 
   const handleUpdateSettings = async () => {
-    await updateDoc(doc(db, 'users', clientId), {
-      interestRate: editRate,
-      paymentDay: editPayDay,
-      paymentFrequency: editFrequency,
-    });
-    showSuccess('Configurações atualizadas!');
+    try {
+      await updateDoc(doc(db, 'users', clientId), {
+        interestRate: editRate,
+        paymentDay: editPayDay,
+        paymentFrequency: editFrequency,
+      });
+      showSuccess('Configurações atualizadas!');
+    } catch (error) {
+      console.error('Erro ao atualizar configurações:', error);
+      showError('Erro ao atualizar configurações.');
+    }
   };
 
   const handleEditTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTransaction) return;
-
     try {
       await updateDoc(doc(db, editingTransaction.type, editingTransaction.id), {
         amount: parseFloat(editingTransaction.amount),
-        date: new Date(editingTransaction.date).toISOString(),
+        date: new Date(editingTransaction.date + 'T12:00:00').toISOString(),
       });
       setEditingTransaction(null);
       showSuccess('Transação atualizada!');
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `${editingTransaction.type}/${editingTransaction.id}`);
+      console.error('Erro ao editar transação:', error);
+      showError('Erro ao editar transação.');
     }
   };
 
-  const handleReinvest = async () => {
-    if (!client) return;
-    
-    // Reinvest the current period profit
+  const handleReinvest = () => {
     const profit = stats.periodProfit;
     if (profit <= 0) {
-      alert('Não há lucro para reinvestir neste período.');
+      showError('Não há lucro para reinvestir neste período.');
       return;
     }
-
-    if (window.confirm(`Reinvestir ${profit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}? Isso marcará o período como pago sem retirar o dinheiro.`)) {
-      try {
-        await addDoc(collection(db, 'payments'), {
-          clientId,
-          clientEmail: client.email,
-          managerId: manager.uid,
-          payerEmail: manager.payerEmail || '',
-          amount: profit,
-          date: new Date().toISOString(),
-          type: 'reinvestment'
-        });
-        showSuccess('Lucro reinvestido com sucesso!');
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'payments');
+    openConfirm(
+      'Reinvestir Lucro',
+      `Reinvestir ${profit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}? O período atual será marcado como pago e o lucro permanecerá investido.`,
+      async () => {
+        try {
+          const now = new Date().toISOString();
+          await addDoc(collection(db, 'payments'), {
+            clientId,
+            clientEmail: client!.email,
+            managerId: manager.uid,
+            payerEmail: manager.payerEmail || '',
+            amount: profit,
+            date: now,
+            type: 'reinvestment',
+          });
+          await addDoc(collection(db, 'deposits'), {
+            clientId,
+            clientEmail: client!.email,
+            managerId: manager.uid,
+            payerEmail: manager.payerEmail || '',
+            amount: profit,
+            date: now,
+            type: 'reinvestment',
+          });
+          showSuccess('Lucro reinvestido! Período marcado como pago.');
+        } catch (error) {
+          console.error('Erro ao reinvestir:', error);
+          showError('Erro ao reinvestir.');
+        }
       }
-    }
+    );
   };
 
-  const handleDeleteTransaction = async (type: 'deposits' | 'payments', id: string) => {
-    if (window.confirm('Excluir esta transação?')) {
-      await deleteDoc(doc(db, type, id));
-    }
+  const handleDeleteTransaction = (type: 'deposits' | 'payments', id: string) => {
+    openConfirm(
+      'Excluir Transação',
+      'Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.',
+      async () => {
+        try {
+          await deleteDoc(doc(db, type, id));
+          showSuccess('Transação excluída com sucesso!');
+        } catch (error: any) {
+          console.error('Erro ao excluir:', error);
+          showError(`Erro ao excluir: ${error?.message || 'Sem permissão.'}`);
+        }
+      }
+    );
   };
 
-  // Chart data (simple projection)
   const chartData = Array.from({ length: 12 }).map((_, i) => {
     const monthDate = new Date();
     monthDate.setMonth(monthDate.getMonth() + i);
@@ -224,7 +283,7 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <button 
+        <button
           onClick={onBack}
           className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 transition-colors font-medium"
         >
@@ -237,10 +296,10 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Toasts */}
       <AnimatePresence>
         {successMsg && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -250,8 +309,20 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
             <span className="font-bold">{successMsg}</span>
           </motion.div>
         )}
+        {errorMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-red-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 fixed top-20 right-8 z-[100]"
+          >
+            <AlertCircle className="w-5 h-5" />
+            <span className="font-bold">{errorMsg}</span>
+          </motion.div>
+        )}
       </AnimatePresence>
 
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Investido</p>
@@ -267,8 +338,8 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-            {client.paymentFrequency === 'weekly' ? 'Previsto p/ Semana' : 
-             client.paymentFrequency === 'biweekly' ? 'Previsto p/ Quinzena' : 
+            {client.paymentFrequency === 'weekly' ? 'Previsto p/ Semana' :
+             client.paymentFrequency === 'biweekly' ? 'Previsto p/ Quinzena' :
              'Total Previsto'}
           </p>
           <h3 className="text-xl font-bold text-purple-600">
@@ -304,7 +375,6 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Actions & Settings */}
         <div className="space-y-6">
           {/* Add Deposit */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -362,17 +432,16 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button 
+                <button
                   type="submit"
                   className="bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                 >
                   Pagar
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={handleReinvest}
                   className="bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center gap-1"
-                  title="Marcar como pago e reinvestir o lucro"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Reinvestir
@@ -390,8 +459,8 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
-                  {editFrequency === 'weekly' ? 'Taxa Semanal (%)' : 
-                   editFrequency === 'biweekly' ? 'Taxa Quinzenal (%)' : 
+                  {editFrequency === 'weekly' ? 'Taxa Semanal (%)' :
+                   editFrequency === 'biweekly' ? 'Taxa Quinzenal (%)' :
                    'Taxa Mensal (%)'}
                 </label>
                 <input
@@ -428,7 +497,7 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                   disabled={editFrequency === 'biweekly'}
                 />
               </div>
-              <button 
+              <button
                 onClick={handleUpdateSettings}
                 className="w-full bg-gray-900 text-white py-2 rounded-lg font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
               >
@@ -439,9 +508,8 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
           </div>
         </div>
 
-        {/* Middle/Right Column: Charts & History */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Growth Chart */}
+          {/* Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-900 mb-6">Projeção de Crescimento (12 meses)</h3>
             <div className="h-64 w-full">
@@ -449,14 +517,14 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                     formatter={(value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   />
@@ -466,7 +534,7 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
             </div>
           </div>
 
-          {/* History Tabs */}
+          {/* History */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -475,7 +543,6 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
               </h3>
             </div>
             <div className="grid grid-cols-2 divide-x divide-gray-100">
-              {/* Deposits Column */}
               <div className="p-6">
                 <h4 className="text-sm font-bold text-emerald-600 uppercase mb-4">Aportes</h4>
                 <div className="space-y-3">
@@ -488,22 +555,20 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                         <p className="text-xs text-gray-500">{new Date(d.date).toLocaleDateString('pt-BR')}</p>
                       </div>
                       <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <button 
+                        <button
                           onClick={() => setEditingTransaction({
                             type: 'deposits',
                             id: d.id,
                             amount: d.amount.toString(),
-                            date: d.date.split('T')[0]
+                            date: new Date(d.date).toISOString().split('T')[0]
                           })}
                           className="p-1 text-gray-400 hover:text-emerald-600 transition-colors"
-                          title="Editar"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteTransaction('deposits', d.id)}
                           className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                          title="Excluir"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -514,7 +579,6 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                 </div>
               </div>
 
-              {/* Payments Column */}
               <div className="p-6">
                 <h4 className="text-sm font-bold text-blue-600 uppercase mb-4">Pagamentos</h4>
                 <div className="space-y-3">
@@ -532,22 +596,20 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                         <p className="text-xs text-gray-500">{new Date(p.date).toLocaleDateString('pt-BR')}</p>
                       </div>
                       <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <button 
+                        <button
                           onClick={() => setEditingTransaction({
                             type: 'payments',
                             id: p.id,
                             amount: p.amount.toString(),
-                            date: p.date.split('T')[0]
+                            date: new Date(p.date).toISOString().split('T')[0]
                           })}
                           className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                          title="Editar"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteTransaction('payments', p.id)}
                           className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                          title="Excluir"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -566,7 +628,7 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
       <AnimatePresence>
         {editingTransaction && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -576,10 +638,7 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                 <h3 className="text-lg font-bold text-gray-900">
                   Editar {editingTransaction.type === 'deposits' ? 'Aporte' : 'Pagamento'}
                 </h3>
-                <button 
-                  onClick={() => setEditingTransaction(null)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                >
+                <button onClick={() => setEditingTransaction(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -606,21 +665,47 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <button 
-                    type="button"
-                    onClick={() => setEditingTransaction(null)}
-                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
-                  >
+                  <button type="button" onClick={() => setEditingTransaction(null)} className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
                     Cancelar
                   </button>
-                  <button 
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
-                  >
+                  <button type="submit" className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors">
                     Salvar
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirm Modal */}
+      <AnimatePresence>
+        {confirmModal.open && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">{confirmModal.title}</h3>
+                <p className="text-sm text-gray-500">{confirmModal.message}</p>
+              </div>
+              <div className="px-6 pb-6 flex gap-3">
+                <button
+                  onClick={closeConfirm}
+                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { confirmModal.onConfirm(); closeConfirm(); }}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                >
+                  Confirmar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

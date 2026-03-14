@@ -87,6 +87,10 @@ export function getClientStats(
   const daysRemaining = Math.max(0, differenceInDays(nextPayment, now));
 
   // Payment status logic
+  const firstDepositDate = deposits.length > 0 
+    ? new Date(Math.min(...deposits.map(d => new Date(d.date).getTime())))
+    : null;
+
   const lastPayment = payments.length > 0 
     ? new Date(Math.max(...payments.map(p => new Date(p.date).getTime())))
     : null;
@@ -109,12 +113,18 @@ export function getClientStats(
   // (i.e., it covers the period that just ended or is about to end)
   const isPaid = lastPayment ? !isAfter(startOfDay(previousPaymentDate), startOfDay(lastPayment)) : false;
   
-  // Overdue if today is on or after the due date (previousPaymentDate) and not paid
-  // Note: previousPaymentDate is the date the payment was/is due for the current cycle
-  const isOverdue = !isPaid && (isAfter(startOfDay(now), startOfDay(previousPaymentDate)) || startOfDay(now).getTime() === startOfDay(previousPaymentDate).getTime());
+  // Overdue if:
+  // 1. Not paid
+  // 2. Today is on or after the due date (previousPaymentDate)
+  // 3. The due date is AFTER the first deposit (you don't owe for periods before you invested)
+  const isOverdue = !isPaid && 
+                    firstDepositDate && 
+                    isAfter(startOfDay(previousPaymentDate), startOfDay(firstDepositDate)) &&
+                    (isAfter(startOfDay(now), startOfDay(previousPaymentDate)) || startOfDay(now).getTime() === startOfDay(previousPaymentDate).getTime());
   
   // Warning if not paid, not overdue, and close to next payment
-  const isWarning = !isPaid && !isOverdue && daysRemaining <= warningThreshold;
+  // Also only if we have a deposit
+  const isWarning = !isPaid && !isOverdue && firstDepositDate && daysRemaining <= warningThreshold;
 
   return {
     totalInvested,
