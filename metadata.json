@@ -1,0 +1,5 @@
+{
+  "name": "Gestor de Investimentos",
+  "description": "Uma plataforma completa para gestão de investimentos com perfis de Gerente e Cliente, cálculo automático de juros compostos e dashboards interativos.",
+  "requestFramePermissions": []
+}
