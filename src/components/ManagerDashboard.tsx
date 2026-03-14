@@ -41,13 +41,11 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // New client form
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientRate, setNewClientRate] = useState(1.5);
   const [newClientPayDay, setNewClientPayDay] = useState(10);
   const [newClientFrequency, setNewClientFrequency] = useState<PaymentFrequency>('monthly');
 
-  // Payer settings
   const [payerEmail, setPayerEmail] = useState(manager.payerEmail || '');
   const [isUpdatingPayer, setIsUpdatingPayer] = useState(false);
 
@@ -84,10 +82,12 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
     setIsSubmitting(true);
 
     try {
-      // Check if user exists
       const normalizedEmail = newClientEmail.trim().toLowerCase();
+      
+      console.log('PASSO 1: Buscando usuário com email:', normalizedEmail);
       const q = query(collection(db, 'users'), where('email', '==', normalizedEmail));
       const querySnapshot = await getDocs(q);
+      console.log('PASSO 1 OK: encontrados', querySnapshot.size, 'usuários');
 
       if (querySnapshot.empty) {
         setError('Este cliente ainda não se cadastrou no sistema com este e-mail. Peça para ele criar uma conta primeiro.');
@@ -97,6 +97,7 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
 
       const userDoc = querySnapshot.docs[0];
       const userData = userDoc.data() as UserProfile;
+      console.log('PASSO 2: Dados do usuário encontrado:', userData.role, '| managerId:', userData.managerId);
 
       if (userData.managerId) {
         setError('Este cliente já possui um gestor associado.');
@@ -104,19 +105,20 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
         return;
       }
 
-      // Update the existing user with manager info
+      console.log('PASSO 3: Tentando updateDoc no uid:', userDoc.id);
       await updateDoc(doc(db, 'users', userDoc.id), {
         managerId: manager.uid,
         interestRate: newClientRate,
         paymentDay: newClientPayDay,
         paymentFrequency: newClientFrequency,
       });
+      console.log('PASSO 3 OK: cliente vinculado com sucesso');
 
       setIsModalOpen(false);
       setNewClientEmail('');
       setError(null);
     } catch (err) {
-      console.error(err);
+      console.error('ERRO DETALHADO:', err);
       setError('Ocorreu um erro ao tentar adicionar o cliente.');
     } finally {
       setIsSubmitting(false);
@@ -160,7 +162,6 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
 
   return (
     <div className="space-y-8">
-      {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
@@ -217,7 +218,6 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
         </motion.div>
       </div>
 
-      {/* Client List Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
           <h2 className="text-lg font-bold text-gray-900">Lista de Clientes</h2>
@@ -342,7 +342,6 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
         </div>
       </div>
 
-      {/* Payer Settings Section */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-blue-50 p-2 rounded-lg">
@@ -374,7 +373,6 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
         </p>
       </div>
 
-      {/* New Client Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
