@@ -11,7 +11,6 @@ import { getClientStats } from '../utils/calculations';
 import { 
   Users, 
   Search, 
-  Calendar,
   DollarSign,
   Clock,
   CheckCircle2,
@@ -30,7 +29,6 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Find managers who linked this payer
     const qManagers = query(
       collection(db, 'users'), 
       where('role', '==', 'manager'),
@@ -44,7 +42,6 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
     const unsubManagers = onSnapshot(qManagers, (mgrSnapshot) => {
       const managerIds = mgrSnapshot.docs.map(doc => doc.id);
       
-      // Clean up previous listeners
       if (unsubClients) unsubClients();
       if (unsubDeposits) unsubDeposits();
       if (unsubPayments) unsubPayments();
@@ -56,7 +53,7 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
         return;
       }
 
-      // Get clients for these managers
+      // Busca clientes pelo managerId
       const qClients = query(
         collection(db, 'users'), 
         where('role', '==', 'client'),
@@ -66,13 +63,20 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
         setClients(snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
       });
 
-      // Get deposits and payments for this payer
-      const qDeposits = query(collection(db, 'deposits'), where('payerEmail', '==', payer.email.toLowerCase()));
+      // Busca depósitos pelo managerId (não pelo payerEmail)
+      const qDeposits = query(
+        collection(db, 'deposits'),
+        where('managerId', 'in', managerIds)
+      );
       unsubDeposits = onSnapshot(qDeposits, (snapshot) => {
         setAllDeposits(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Deposit)));
       });
 
-      const qPayments = query(collection(db, 'payments'), where('payerEmail', '==', payer.email.toLowerCase()));
+      // Busca pagamentos pelo managerId (não pelo payerEmail)
+      const qPayments = query(
+        collection(db, 'payments'),
+        where('managerId', 'in', managerIds)
+      );
       unsubPayments = onSnapshot(qPayments, (snapshot) => {
         setAllPayments(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Payment)));
       });
@@ -109,7 +113,6 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
         </div>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -173,7 +176,6 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
         </motion.div>
       </div>
 
-      {/* Client List Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
           <h2 className="text-lg font-bold text-gray-900">Lista de Pagamentos</h2>
@@ -213,7 +215,6 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-gray-900">{client.name}</span>
-                        <span className="text-xs text-gray-500">{client.email}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
