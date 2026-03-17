@@ -26,6 +26,7 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
   const [clients, setClients] = useState<UserProfile[]>([]);
   const [allDeposits, setAllDeposits] = useState<Deposit[]>([]);
   const [allPayments, setAllPayments] = useState<Payment[]>([]);
+  const [globalRate, setGlobalRate] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -41,6 +42,14 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
 
     const unsubManagers = onSnapshot(qManagers, (mgrSnapshot) => {
       const managerIds = mgrSnapshot.docs.map(doc => doc.id);
+      const managers = mgrSnapshot.docs.map(doc => doc.data() as UserProfile);
+      
+      // Se houver pelo menos um manager, pega a taxa global do primeiro (assumindo um manager principal)
+      if (managers.length > 0 && typeof managers[0].globalInterestRate === 'number') {
+        setGlobalRate(managers[0].globalInterestRate);
+      } else {
+        setGlobalRate(null);
+      }
       
       if (unsubClients) unsubClients();
       if (unsubDeposits) unsubDeposits();
@@ -99,7 +108,8 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
     const stats = getClientStats(
       client,
       allDeposits.filter(d => d.clientId === client.uid),
-      allPayments.filter(p => p.clientId === client.uid)
+      allPayments.filter(p => p.clientId === client.uid),
+      globalRate ?? undefined
     );
     return sum + stats.periodProfit;
   }, 0);
@@ -147,7 +157,8 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
                   const stats = getClientStats(
                     client,
                     allDeposits.filter(d => d.clientId === client.uid),
-                    allPayments.filter(p => p.clientId === client.uid)
+                    allPayments.filter(p => p.clientId === client.uid),
+                    globalRate ?? undefined
                   );
                   return sum + stats.currentBalance;
                 }, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -167,7 +178,14 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
               <Clock className="text-purple-600 w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 font-medium">Próximos Repasses (Total)</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-gray-500 font-medium">Próximos Repasses (Total)</p>
+                {globalRate !== null && (
+                  <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">
+                    Taxa Global: {globalRate}%
+                  </span>
+                )}
+              </div>
               <h3 className="text-2xl font-bold text-purple-600">
                 {totalToPay.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </h3>
@@ -207,7 +225,8 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
                 const stats = getClientStats(
                   client,
                   allDeposits.filter(d => d.clientId === client.uid),
-                  allPayments.filter(p => p.clientId === client.uid)
+                  allPayments.filter(p => p.clientId === client.uid),
+                  globalRate ?? undefined
                 );
 
                 return (

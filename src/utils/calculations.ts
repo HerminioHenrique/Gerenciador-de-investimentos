@@ -34,10 +34,12 @@ export function calculateCompoundInterest(
 export function getClientStats(
   client: UserProfile,
   deposits: Deposit[],
-  payments: Payment[]
+  payments: Payment[],
+  overrideRate?: number
 ): ClientStats {
   const now = new Date();
   const rate = typeof client.interestRate === 'number' ? client.interestRate : parseFloat(client.interestRate as any || '0');
+  const profitRate = typeof overrideRate === 'number' ? overrideRate : rate;
   const payDay = client.paymentDay || 1;
   const frequency = client.paymentFrequency || 'monthly';
 
@@ -59,7 +61,7 @@ export function getClientStats(
   currentBalance -= totalPaid;
 
   // Period profit projection (Next period's yield)
-  const periodProfit = currentBalance * (rate / 100);
+  const periodProfit = currentBalance * (profitRate / 100);
 
   // Next payment date calculation
   let nextPayment = new Date();

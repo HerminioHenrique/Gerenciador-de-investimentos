@@ -11,6 +11,7 @@ export interface UserProfile {
   paymentFrequency?: PaymentFrequency; // Only for clients
   managerId?: string; // For clients, who manages them
   payerEmail?: string; // For managers, to link a payer
+  globalInterestRate?: number; // For managers, a global rate for the payer view
   createdAt: string;
 }
 

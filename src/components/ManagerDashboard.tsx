@@ -47,7 +47,9 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
   const [newClientFrequency, setNewClientFrequency] = useState<PaymentFrequency>('monthly');
 
   const [payerEmail, setPayerEmail] = useState(manager.payerEmail || '');
+  const [globalRate, setGlobalRate] = useState(manager.globalInterestRate || 0);
   const [isUpdatingPayer, setIsUpdatingPayer] = useState(false);
+  const [isUpdatingGlobalRate, setIsUpdatingGlobalRate] = useState(false);
 
   useEffect(() => {
     const qClients = query(
@@ -137,6 +139,21 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
       alert('Erro ao atualizar e-mail do pagador.');
     } finally {
       setIsUpdatingPayer(false);
+    }
+  };
+
+  const handleUpdateGlobalRate = async () => {
+    setIsUpdatingGlobalRate(true);
+    try {
+      await updateDoc(doc(db, 'users', manager.uid), {
+        globalInterestRate: globalRate
+      });
+      alert('Taxa global do pagador atualizada com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao atualizar taxa global.');
+    } finally {
+      setIsUpdatingGlobalRate(false);
     }
   };
 
@@ -342,35 +359,66 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="bg-blue-50 p-2 rounded-lg">
-            <Users className="text-blue-600 w-5 h-5" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-blue-50 p-2 rounded-lg">
+              <Users className="text-blue-600 w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Configuração do Pagador</h3>
+              <p className="text-xs text-gray-500">Vincule um pagador para acesso aos dados</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">Configuração do Pagador</h3>
-            <p className="text-xs text-gray-500">Vincule um pagador para que ele tenha acesso aos seus clientes</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="email"
+              placeholder="E-mail do pagador"
+              value={payerEmail}
+              onChange={(e) => setPayerEmail(e.target.value)}
+              className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <button
+              onClick={handleUpdatePayer}
+              disabled={isUpdatingPayer}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center min-w-[140px]"
+            >
+              {isUpdatingPayer ? 'Salvando...' : 'Vincular Pagador'}
+            </button>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="email"
-            placeholder="E-mail do pagador"
-            value={payerEmail}
-            onChange={(e) => setPayerEmail(e.target.value)}
-            className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          <button
-            onClick={handleUpdatePayer}
-            disabled={isUpdatingPayer}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center min-w-[140px]"
-          >
-            {isUpdatingPayer ? 'Salvando...' : 'Vincular Pagador'}
-          </button>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-purple-50 p-2 rounded-lg">
+              <TrendingUp className="text-purple-600 w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Taxa Global do Pagador</h3>
+              <p className="text-xs text-gray-500">Esta taxa sobrepõe as individuais na tela do pagador</p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Taxa Global (%)"
+                value={globalRate}
+                onChange={(e) => setGlobalRate(parseFloat(e.target.value))}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+            </div>
+            <button
+              onClick={handleUpdateGlobalRate}
+              disabled={isUpdatingGlobalRate}
+              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center min-w-[140px]"
+            >
+              {isUpdatingGlobalRate ? 'Salvando...' : 'Definir Taxa'}
+            </button>
+          </div>
         </div>
-        <p className="text-[10px] text-gray-400 mt-2">
-          * Apenas o usuário com este e-mail poderá visualizar os dados financeiros dos seus clientes no Painel do Pagador.
-        </p>
       </div>
 
       <AnimatePresence>
