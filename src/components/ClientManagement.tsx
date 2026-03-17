@@ -542,19 +542,19 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                 Histórico de Transações
               </h3>
             </div>
-            <div className="grid grid-cols-2 divide-x divide-gray-100">
-              <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+              <div className="p-4 sm:p-6">
                 <h4 className="text-sm font-bold text-emerald-600 uppercase mb-4">Aportes</h4>
                 <div className="space-y-3">
                   {deposits.map(d => (
                     <div key={d.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg group">
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">
                           {d.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </p>
                         <p className="text-xs text-gray-500">{new Date(d.date).toLocaleDateString('pt-BR')}</p>
                       </div>
-                      <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => setEditingTransaction({
                             type: 'deposits',
@@ -562,15 +562,15 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                             amount: d.amount.toString(),
                             date: new Date(d.date).toISOString().split('T')[0]
                           })}
-                          className="p-1 text-gray-400 hover:text-emerald-600 transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-emerald-600 transition-colors"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteTransaction('deposits', d.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -579,23 +579,23 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h4 className="text-sm font-bold text-blue-600 uppercase mb-4">Pagamentos</h4>
                 <div className="space-y-3">
                   {payments.map(p => (
                     <div key={p.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg group">
-                      <div>
-                        <div className="flex items-center gap-1">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1 flex-wrap">
                           <p className="text-sm font-bold text-gray-900">
                             {p.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </p>
                           {p.type === 'reinvestment' && (
-                            <span className="text-[8px] px-1 bg-purple-100 text-purple-600 rounded font-bold uppercase">Reinvestido</span>
+                            <span className="text-[8px] px-1 bg-purple-100 text-purple-600 rounded font-bold uppercase whitespace-nowrap">Reinvestido</span>
                           )}
                         </div>
                         <p className="text-xs text-gray-500">{new Date(p.date).toLocaleDateString('pt-BR')}</p>
                       </div>
-                      <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => setEditingTransaction({
                             type: 'payments',
@@ -603,15 +603,15 @@ export default function ClientManagement({ manager, clientId, onBack }: ClientMa
                             amount: p.amount.toString(),
                             date: new Date(p.date).toISOString().split('T')[0]
                           })}
-                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteTransaction('payments', p.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
