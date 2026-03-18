@@ -6,7 +6,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { UserProfile, Deposit, Payment } from '../types';
+import { UserProfile, Deposit, Payment, PaymentFrequency } from '../types';
 import { getClientStats } from '../utils/calculations';
 import { 
   Users, 
@@ -109,7 +109,8 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
       client,
       allDeposits.filter(d => d.clientId === client.uid),
       allPayments.filter(p => p.clientId === client.uid),
-      globalRate ?? undefined
+      globalRate ?? undefined,
+      'weekly' // SEMPRE semanal para o pagador
     );
     return sum + stats.periodProfit;
   }, 0);
@@ -182,7 +183,7 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
                 <p className="text-sm text-gray-500 font-medium">Próximos Repasses (Total)</p>
                 {globalRate !== null && (
                   <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">
-                    Taxa Global: {globalRate}%
+                    Taxa Global: {globalRate}% Semanal
                   </span>
                 )}
               </div>
@@ -226,7 +227,8 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
                   client,
                   allDeposits.filter(d => d.clientId === client.uid),
                   allPayments.filter(p => p.clientId === client.uid),
-                  globalRate ?? undefined
+                  globalRate ?? undefined,
+                  'weekly'
                 );
 
                 return (
@@ -240,7 +242,14 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
                       {stats.currentBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-purple-600">
-                      {stats.periodProfit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      <div className="flex flex-col">
+                        <span>{stats.periodProfit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        {globalRate !== null && (
+                          <span className="text-[10px] text-purple-400">
+                            ({globalRate}% semanal)
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
@@ -248,7 +257,7 @@ export default function PayerDashboard({ payer }: PayerDashboardProps) {
                           {stats.nextPaymentDate.toLocaleDateString('pt-BR')}
                         </span>
                         <span className="text-[10px] text-gray-400 uppercase">
-                          {client.paymentFrequency === 'weekly' ? 'Semanal' : client.paymentFrequency === 'biweekly' ? 'Quinzenal' : 'Mensal'}
+                          Semanal
                         </span>
                       </div>
                     </td>

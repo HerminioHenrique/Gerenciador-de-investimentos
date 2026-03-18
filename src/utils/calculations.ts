@@ -35,13 +35,15 @@ export function getClientStats(
   client: UserProfile,
   deposits: Deposit[],
   payments: Payment[],
-  overrideRate?: number
+  overrideRate?: number,
+  overrideFrequency?: PaymentFrequency
 ): ClientStats {
   const now = new Date();
   const rate = typeof client.interestRate === 'number' ? client.interestRate : parseFloat(client.interestRate as any || '0');
   const profitRate = typeof overrideRate === 'number' ? overrideRate : rate;
   const payDay = client.paymentDay || 1;
   const frequency = client.paymentFrequency || 'monthly';
+  const displayFrequency = overrideFrequency || frequency;
 
   let totalInvested = 0;
   let currentBalance = 0;
@@ -51,6 +53,7 @@ export function getClientStats(
     const depositDate = new Date(d.date);
     totalInvested += d.amount;
     // For current balance, we use compound interest based on full periods passed
+    // We ALWAYS use the client's original frequency and rate for the capital balance
     currentBalance += calculateCompoundInterest(d.amount, rate, depositDate, frequency, now);
   });
 
@@ -66,19 +69,21 @@ export function getClientStats(
   // Next payment date calculation
   let nextPayment = new Date();
 
-  if (frequency === 'monthly') {
+  if (displayFrequency === 'monthly') {
     nextPayment = setDate(now, payDay);
     if (isAfter(startOfDay(now), startOfDay(nextPayment))) {
       nextPayment = addMonths(nextPayment, 1);
     }
-  } else if (frequency === 'weekly') {
+  } else if (displayFrequency === 'weekly') {
     // payDay 1-7 (Mon-Sun)
-    const targetDay = (payDay % 7); // date-fns uses 0-6 (Sun-Sat)
+    // If we are overriding to weekly, we might want a default payDay if the client was monthly
+    const targetPayDay = overrideFrequency ? 1 : payDay; // Default to Monday if forced weekly
+    const targetDay = (targetPayDay % 7); // date-fns uses 0-6 (Sun-Sat)
     nextPayment = setDay(now, targetDay);
     if (isAfter(startOfDay(now), startOfDay(nextPayment))) {
       nextPayment = addWeeks(nextPayment, 1);
     }
-  } else if (frequency === 'biweekly') {
+  } else if (displayFrequency === 'biweekly') {
     // Every 14 days from createdAt
     const anchor = new Date(client.createdAt);
     const daysSinceAnchor = differenceInDays(now, anchor);
@@ -100,10 +105,10 @@ export function getClientStats(
   let previousPaymentDate: Date;
   let warningThreshold: number;
 
-  if (frequency === 'monthly') {
+  if (displayFrequency === 'monthly') {
     previousPaymentDate = addMonths(nextPayment, -1);
     warningThreshold = 3;
-  } else if (frequency === 'weekly') {
+  } else if (displayFrequency === 'weekly') {
     previousPaymentDate = addWeeks(nextPayment, -1);
     warningThreshold = 1;
   } else {

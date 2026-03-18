@@ -148,7 +148,7 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
       await updateDoc(doc(db, 'users', manager.uid), {
         globalInterestRate: globalRate
       });
-      alert('Taxa global do pagador atualizada com sucesso!');
+      alert('Taxa global semanal do pagador atualizada com sucesso!');
     } catch (err) {
       console.error(err);
       alert('Erro ao atualizar taxa global.');
@@ -398,24 +398,29 @@ export default function ManagerDashboard({ manager, onSelectClient }: ManagerDas
               <p className="text-xs text-gray-500">Esta taxa sobrepõe as individuais na tela do pagador</p>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 relative">
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Taxa Global (%)"
-                value={globalRate}
-                onChange={(e) => setGlobalRate(parseFloat(e.target.value))}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Taxa Global Semanal (%)"
+                  value={globalRate}
+                  onChange={(e) => setGlobalRate(parseFloat(e.target.value))}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+              </div>
+              <div className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-500 font-medium flex items-center justify-center min-w-[120px]">
+                Semanal
+              </div>
             </div>
             <button
               onClick={handleUpdateGlobalRate}
               disabled={isUpdatingGlobalRate}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center min-w-[140px]"
+              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center"
             >
-              {isUpdatingGlobalRate ? 'Salvando...' : 'Definir Taxa'}
+              {isUpdatingGlobalRate ? 'Salvando...' : 'Definir Taxa Global'}
             </button>
           </div>
         </div>
