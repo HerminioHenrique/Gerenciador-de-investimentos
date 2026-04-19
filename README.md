@@ -10,7 +10,7 @@
 
 Um sistema web de **gerenciamento de investimentos** com três perfis de acesso distintos: **Gerente**, **Cliente** e **Pagador**. A aplicação foi criada para operações de investimento privadas onde um gestor administra os recursos de múltiplos clientes, com rendimentos configuráveis por frequência (semanal, quinzenal ou mensal), e um pagador acompanha os repasses devidos.
 
-Desenvolvido com **React + TypeScript + Vite** e integrado ao **Firebase** (autenticação e banco de dados em tempo real). O sistema conta com cálculo automático de **juros compostos**, projeções de crescimento e alertas visuais de vencimento.
+Desenvolvido com o auxílio do **Google AI Studio**, utilizando **React + TypeScript + Vite** e integrado ao **Firebase** (autenticação e banco de dados em tempo real). O sistema conta com cálculo automático de **juros compostos**, projeções de crescimento e alertas visuais de vencimento.
 
 ---
 
@@ -206,7 +206,7 @@ payments/
 
 A web-based **investment management system** with three distinct access profiles: **Manager**, **Client**, and **Payer**. The application was built for private investment operations where a manager oversees the funds of multiple clients, with configurable yield frequencies (weekly, biweekly, or monthly), and a payer monitors the disbursements due.
 
-Built with **React + TypeScript + Vite** and integrated with **Firebase** (authentication and real-time database). The system features automatic **compound interest** calculations, growth projections, and visual payment status alerts.
+Built with the assistance of **Google AI Studio**, using **React + TypeScript + Vite** and integrated with **Firebase** (authentication and real-time database). The system features automatic **compound interest** calculations, growth projections, and visual payment status alerts.
 
 ---
 
